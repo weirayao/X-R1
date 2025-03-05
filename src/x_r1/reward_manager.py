@@ -14,9 +14,7 @@ def accuracy_reward(prompts=None, completions=None, **reward_kwargs):
         
     Returns:
         A reward function or a list of reward values depending on the data source
-    """
-    from src.x_r1.reward_score.xr1 import accuracy_answer_reward
-    
+    """    
     # Create a dictionary of kwargs for each completion, excluding data_source
     other_kwargs_list = [
         {k: v[i] for k, v in reward_kwargs.items() if k != "data_source"}
@@ -28,6 +26,7 @@ def accuracy_reward(prompts=None, completions=None, **reward_kwargs):
     rewards = []
     for prompt, completion, data_source, kwargs in zip(prompts, completions, reward_kwargs["data_source"], other_kwargs_list):
         if data_source == "x-r1":
+            from src.x_r1.reward_score.xr1 import accuracy_answer_reward
             reward = accuracy_answer_reward(completion=completion, **kwargs)
         # TODO: add more data sources
         elif data_source == "gsm8k":
