@@ -14,11 +14,8 @@ def accuracy_answer_reward(completion, solution, **kwargs):
         float: Reward score between 0 and 1
     """
     # is it a completion dictionary in the format of {"content": "...", "role": "assistant"} or a string?
-    assert isinstance(completion, dict) or isinstance(completion, str), "Completion must be a dictionary or a string"
-    if "content" in completion:
-        content = completion["content"]
-    else:
-        content = completion
+    assert isinstance(completion, str), "Completion must be a string"
+    content = completion
     
     # First try latex parsing
     gold_parsed = parse(
