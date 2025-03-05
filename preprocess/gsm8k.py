@@ -87,5 +87,5 @@ test_dataset = test_dataset.map(
 # print the first item of the train dataset
 print(train_dataset[0])
 
-train_dataset.to_parquet(os.path.join(local_dir, "train.parquet"))
-test_dataset.to_parquet(os.path.join(local_dir, "test.parquet"))
+train_dataset.to_parquet(os.path.join(local_dir, f"train_{model_name.split('/')[-1]}.parquet"))
+test_dataset.to_parquet(os.path.join(local_dir, f"test_{model_name.split('/')[-1]}.parquet"))
