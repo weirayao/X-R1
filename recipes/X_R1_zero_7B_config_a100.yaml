@@ -1,6 +1,8 @@
 # This is X-R1(https://github.com/dhcode-cpp/X-R1) project training config:
 # required >=  16 x 40G GPU
 # running time ~32h
+wandb_project: x_r1_sanity_check
+run_name: Qwen2.5-7B-Instruct_lr_3e-6_bs_240_n_15_reward_manager
 
 # Model arguments
 model_name_or_path: Qwen/Qwen2.5-7B-Instruct
@@ -9,14 +11,15 @@ torch_dtype: bfloat16
 attn_implementation: flash_attention_2
 
 # Data training arguments
-dataset_name: xiaodongguaAIGC/X-R1-7500 # 750 / 1500 / 7500
-dataset_configs:
-- train
+dataset_name: dummy/dummy # This is not used; we preprocess the data before training
+train_dataset_file: /export/home/data/X-R1-7500/train_Qwen2.5-7B-Instruct.parquet
+test_dataset_file: /export/home/data/X-R1-7500/test_Qwen2.5-7B-Instruct.parquet
+
 num_processes: 15
 
 # GRPO trainer config
 use_vllm: true
-output_dir: output/X-R1-7B
+output_dir: output/X-R1-7B-reward_manager
 gradient_accumulation_steps: 8
 max_prompt_length: 256
 num_generations: 15
@@ -27,9 +30,10 @@ vllm_device: auto
 vllm_gpu_memory_utilization: 0.4
 vllm_max_model_len: 2048
 temperature: 1.0
-do_eval: false
-eval_strategy: "no"
+do_eval: true
+eval_strategy: "steps" # "no", "steps", "epoch"
 eval_steps: 10
+
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
@@ -41,12 +45,11 @@ lr_scheduler_type: cosine
 max_steps: -1
 num_train_epochs: 3
 overwrite_output_dir: true
-per_device_eval_batch_size: 1
+per_device_eval_batch_size: 16
 per_device_train_batch_size: 2
 push_to_hub: False
 report_to:
 - wandb
-run_name: X-R1-7500_Qwen2.5-7B-Instruct_a100
 
 save_strategy: "epoch"
 resume_from_checkpoint: False

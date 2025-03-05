@@ -56,7 +56,10 @@ def evaluate_answer_similarity(answer, solution):
 
 def accuracy_reward(completions, solution, **kwargs):
     """Reward function that checks if the completion is the same as the ground truth."""
-    contents = [completion[0]["content"] for completion in completions]
+    if "content" in completions[0]:
+        contents = [completion[0]["content"] for completion in completions]
+    else:
+        contents = completions
     rewards = []
     for content, sol in zip(contents, solution):
         # First try latex parsing
@@ -141,8 +144,11 @@ def accuracy_answer_reward(completion, answer, **kwargs):
 
 def format_reward(completions, **kwargs):
     """Reward function that checks if the completion has a specific format."""
+    if "content" in completions[0]:
+        completion_contents = [completion[0]["content"] for completion in completions]
+    else:
+        completion_contents = completions
     pattern = r"^<think>.*?</think><answer>.*?</answer>$"
-    completion_contents = [completion[0]["content"] for completion in completions]
     matches = [re.match(pattern, content) for content in completion_contents]
 
     rewards = [1.0 if match else 0.0 for match in matches]
@@ -161,7 +167,10 @@ def reasoning_steps_reward(completions, **kwargs):
         First,|Second,|Next,|Finally, - matches transition words
     """
     pattern = r"(Step \d+:|^\d+\.|\n-|\n\*|First,|Second,|Next,|Finally,)"
-    completion_contents = [completion[0]["content"] for completion in completions]
+    if "content" in completions[0]:
+        completion_contents = [completion[0]["content"] for completion in completions]
+    else:
+        completion_contents = completions
     matches = [len(re.findall(pattern, content)) for content in completion_contents]
 
     # Magic nubmer 3 to encourage 3 steps and more, otherwise partial reward
@@ -182,8 +191,10 @@ def len_reward(completions: list[Dict[str, str]], solutions: list[str], **kwargs
         - For correct answers: reward = 0.5 - (len - min_len)/(max_len - min_len)
         - For incorrect answers: reward = min(0, 0.5 - (len - min_len)/(max_len - min_len))
     """
-    contents = [completion[0]["content"] for completion in completions]
-
+    if "content" in completions[0]:
+        contents = [completion[0]["content"] for completion in completions]
+    else:
+        contents = completions
     # First check correctness of answers
     correctness = []
     for content, sol in zip(contents, solutions):
@@ -265,7 +276,10 @@ def get_cosine_scaled_reward(
             max_value_correct: Maximum reward for correct answers
             max_len: Maximum length for scaling
         """
-        contents = [completion[0]["content"] for completion in completions]
+        if "content" in completions[0]:
+            contents = [completion[0]["content"] for completion in completions]
+        else:
+            contents = completions
         rewards = []
 
         for content, sol in zip(contents, solution):
@@ -341,8 +355,10 @@ def get_repetition_penalty_reward(ngram_size: int, max_penalty: float):
         Args:
             completions: List of model completions
         """
-
-        contents = [completion[0]["content"] for completion in completions]
+        if "content" in completions[0]:
+            contents = [completion[0]["content"] for completion in completions]
+        else:
+            contents = completions
         rewards = []
         for completion in contents:
             if completion == "":

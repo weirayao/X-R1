@@ -27,8 +27,9 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 
 from configs import GRPOConfig
+from reward_manager import accuracy_reward
 from rewards import (
-    accuracy_reward,
+    # accuracy_reward,
     format_reward,
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
@@ -94,8 +95,30 @@ class GRPOScriptArguments(ScriptArguments):
         default=-1.0,
         metadata={"help": "Maximum (negative) penalty for for repetition penalty reward"},
     )
-
-
+    # dataset name (default to a dummy name: A/B)
+    # One should not change this field or use the dataset name in recipes
+    dataset_name: str = field(
+        default="A/B",
+        metadata={"help": "Name of the dataset"},
+    )
+    # Rather, one should use the following two fields to specify the training and test dataset files
+    # after the data pre-processing step in data_preprocess/ folder.
+    train_dataset_file: str = field(
+        default="train.parquet",
+        metadata={"help": "Path to the training dataset file"},
+    )
+    test_dataset_file: str = field(
+        default="test.parquet",
+        metadata={"help": "Path to the test dataset file"},
+    )
+    dataset_train_split: str = field(
+        default="train",
+        metadata={"help": "Name of the training split"},
+    )
+    dataset_test_split: str = field(
+        default="test",
+        metadata={"help": "Name of the test split"},
+    )
 
 SYSTEM_PROMPT = (
     "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
@@ -142,9 +165,18 @@ def main(script_args, training_args, model_args):
 
     if "wandb" in training_args.report_to:
         init_wandb_training(training_args)
-
+        
+    logger.info("*** Dataset files ***")
+    logger.info(script_args.train_dataset_file)
+    logger.info(script_args.test_dataset_file)
     # Load the dataset
-    dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
+    dataset = load_dataset(
+        "parquet", 
+        data_files={
+            'train': script_args.train_dataset_file, 
+            'test': script_args.test_dataset_file
+            }
+        )
 
     # align the dataset
     if script_args.dataset_name == "FreedomIntelligence/medical-o1-verifiable-problem":
@@ -172,17 +204,14 @@ def main(script_args, training_args, model_args):
         "length": len_reward,
     }
     reward_funcs = [REWARD_FUNCS_REGISTRY[func] for func in script_args.reward_funcs]
+    
+    # If "prompt" column does not exist, create it using the `make_conversation` function
+    # One should always create the "prompt" column for the training and evaluation datasets
+    # during the data pre-processing step in data_preprocess/ folder.
+    if "prompt" not in dataset[script_args.dataset_train_split].column_names:
+        raise ValueError("prompt column does not exist in the training dataset")
 
-    # Format into conversation
-    def make_conversation(example):
-        return {
-            "prompt": [
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user", "content": example["problem"]},
-            ],
-        }
-
-    dataset = dataset.map(make_conversation)
+    # If "messages" column exists, remove it
     for split in dataset:
         if "messages" in dataset[split].column_names:
             dataset[split] = dataset[split].remove_columns("messages")
