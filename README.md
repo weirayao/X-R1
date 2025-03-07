@@ -1,169 +1,6 @@
-# X-R1
+# xLR: Distributed Large Reasoning System as a Scalable Path Towards AGI
 
-![x-r1-logo](./README.assets/X-R1-log.png)
-
-
-X-R1 aims to build an easy-to-use, low-cost training framework based on end-to-end reinforcement learning to accelerate the development of Scaling Post-Training
-
-Inspired by [DeepSeek-R1](https://github.com/deepseek-ai/DeepSeek-R1) and [open-r1](https://github.com/huggingface/open-r1) , we produce minimal-cost for training 0.5B R1-Zero "Aha Moment"💡 from base model
-
-
-## Feature
-
-- 🔥Training with LoRA
-- 4x3090/4090 GPUs training 1hour, 💰cost < 7 dollar, 10min 37'step output “aha Moment“ 💡
-- 0.5B scale model RL training
-- support BIGGER model: 1.5B/7B/32B...
-- We supply 0.75k/1.5k/7.5k dataset for fast train loop
-- We logging GRPO online sampling data to log file
-
-
-## News
-
-- 2025.02.18 Suppor LoRA+Zero3, Medical and llm-as-a-reward, add MATH500 benchmark evaluation result.
-- 2025.02.16 Support LoRA
-- 2025.02.15 Release Chinese Training
-- 2025.02.13 Release X-R1-3B, whick better follow format. colab inference
-- 2025.02.12 Release X-R1-1.5B config/wandb/model/log
-- 2025.02.12: Release X-R1 first version
-
-## Result
-
-### Overview
-
-Running Scripts:
-
-```bash
-bash ./scripts/run_x_r1_zero.sh
-```
-
-We would share training details about  config/wandb/model/log, also evaluation results:
-
-📈 [wandb details](https://api.wandb.ai/links/xiaodonggua/eb471rlw) | 🔥 [Colab Inference](https://colab.research.google.com/drive/1TxjJ-M9J2lLW3zcKr7oeER3snXe0oWo4#scrollTo=VnkmSMGwZOhI) | 🤗 [Models](https://huggingface.co/xiaodongguaAIGC)
-
-We have confirmed the effectiveness of the X-R1 RL-Zero-training method for `0.5B/1.5B/3B-Base` model, We can observe that in the without-SFT, reinforcement learning has **Incentivizing** the model's reasoning abilities and format-following capabilities, and the experimental results of X-R1 are very encouraging.
-
-![X-R1-base-result-curves](./README.assets/X-R1-base-result-curves.png)
-
-training config
-
-| Model                 | 0.5B                                                                                         | 1.5B                                                                                         | 3B                                                                                           | 7B  |
-| --------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | --- |
-| TargetModel           | [X-R1-0.5B](https://huggingface.co/xiaodongguaAIGC/X-R1-0.5B)                                | [X-R1-1.5B](https://huggingface.co/xiaodongguaAIGC/X-R1-1.5B)                                | [X-R1-3B](https://huggingface.co/xiaodongguaAIGC/X-R1-3B)                                    |     |
-| Log                   | [[link]](https://drive.google.com/file/d/1m-w0B2L9o-bwGDgaOtWFLR0C0MAEBTFQ/view?usp=sharing) | [[link]](https://drive.google.com/file/d/11tBShY206Pu_SxWE0M-mG2_Cdf9mFNig/view?usp=sharing) | [[link]](https://drive.google.com/file/d/1t4WzsK0aMrULYKjKsKH29LsWQMeTDjTb/view?usp=sharing) |     |
-| GPU                   | 4x3090                                                                                       | 4x3090                                                                                       | 4x3090                                                                                       |     |
-| Base                  | Qwen/Qwen2.5-0.5B                                                                            | Qwen/Qwen2.5-1.5B                                                                            | Qwen/Qwen2.5-3B                                                                              |     |
-| Dataset               | X-R1-750                                                                                     | X-R1-750                                                                                     | X-R1-750                                                                                     |     |
-| Config: recipes       | X_R1_zero_0dot5B_config.yaml                                                                 | X_R1_zero_1dot5B_config.yaml                                                                 | X_R1_zero_3B_config.yaml                                                                     |     |
-| num_generations       | 16                                                                                           | 8                                                                                            | 4                                                                                            |     |
-| max_completion_length | 1024                                                                                         | 1024                                                                                         | 1024                                                                                         |     |
-| num_train_epochs      | 3                                                                                            | 3                                                                                            | 3                                                                                            |     |
-| Times                 | 1:14:10                                                                                      | 1:59:06                                                                                      | 2:23:06                                                                                      |     |
-
-### Example: 0.5B R1-Zero
-
-0.5B, 4x3090.  if you have 4 GPUs, you should set `--num_processes=3`.  One GPU deploy vLLM as online inference engine, for faster GRPO sampling
-
-example: 4x4090, 3epochs, training time, ~1h20min
-
-```shell
-ACCELERATE_LOG_LEVEL=info \
-accelerate launch \
---config_file recipes/zero3.yaml \
---num_processes=3 \
-src/x_r1/grpo.py \
---config recipes/X_R1_zero_0dot5B_config.yaml \
-> ./output/x_r1_0dotB_sampling.log 2>&1
-```
-
-tips : use `--config recipes/X_R1_zero_3B_config.yaml` for better learning reasoning and format
-
-#### Aha Moment:
-
-***Wait**, that doesn't match either of our options. It seems like I made a **mistake** in my **assumptions**. **Let's go back** to the original equations*
-
-![aha_moment](./README.assets/aha_moment_0.5B.png)
-
-#### benchmark evaluation
-
-we use vllm as backend, to evaluate benchmark. output accuracy-metric and format-metric, and json file 
-
-```bash
-CUDA_VISIBLE_DEVICES=0,1 python ./src/x_r1/benchmark.py \
-	--model_name='xiaodongguaAIGC/X-R1-0.5B' \
-    --dataset_name='HuggingFaceH4/MATH-500' \
-	--output_name='./output/result_benchmark_math500'  \
-	--max_output_tokens=1024 \
-	--num_gpus=2
-```
-
-### Example: Chinese Math Reasoning
-
-X-R1 support chinese math reasoning, it's easy to make chinese `Aha Moment`, as follow
-
-```bash
-ACCELERATE_LOG_LEVEL=info \
-accelerate launch \
---config_file recipes/zero3.yaml \
---num_processes=3 \
-src/x_r1/grpo.py \
---config recipes/examples/mathcn_zero_3B_config.yaml \
-> ./output/mathcn_3B_sampling.log 2>&1
-```
-
-#### reward curve
-
-X-R1 use 4x3090 ~16h training 3B-base with 7.5k chinese math problem.
-
-![X-R1-math-cn-curve](./README.assets/X-R1-math-cn-curve.png)
-
-#### Chinese Aha Moment
-
-[X-R1-3B-CN](xiaodongguaAIGC/X-R1-0.5B-CN) training [log](https://drive.google.com/file/d/1dPex_uiZ-4Lj2Jv8G8SWw6z0OsNSqLLM/view?usp=sharing) we track ”Aha Moment”
-
-![X-R1-Math-cn-AhaMoment-1](./README.assets/X-R1-Math-cn-AhaMoment-1.png)
-
-![X-R1-Math-cn-AhaMoment-2](./README.assets/X-R1-Math-cn-AhaMoment-2.png)
-
-
-
-### Example: GRPO + LoRA
-
-1. multi-gpu run:
-
-```bash
-ACCELERATE_LOG_LEVEL=info 
-accelerate launch 
---config_file recipes/zero3.yaml 
---num_processes=3 src/x_r1/grpo.py 
---config recipes/examples/X_R1_zero_7B_peft_usevllm_config.yaml.yaml
-> ./output/test_7b_lora_sampling.log 2>&1
-```
-
-2. single-gpu 3090 training 7B LoRA run:
-
-```bash
-ACCELERATE_LOG_LEVEL=info 
-accelerate launch 
---config_file recipes/zero3.yaml 
---num_processes=1 src/x_r1/grpo.py 
---config recipes/examples/X_R1_zero_7B_peft_novllm_config.yaml.yaml
-> ./output/test_7b_lora_sampling.log 2>&1
-```
-
-### Example: GRPO without KL
-
-set KL iterm `beta: 0.0` and ignore `ref_model` , improve 20% performance.
-
-```bash 
-accelerate launch \
---config_file recipes/zero3.yaml \
---num_processes=3 \
-src/x_r1/grpo.py \
---config recipes/X_R1_zero_1dot5B_noKL_config.yaml \
-> ./output/test_1dot5B_sampling.log 2>&1
-```
-
+We develop our training framework for xLR model series based on a fork from [X-R1](https://github.com/dhcode-cpp/X-R1/tree/main/src/x_r1). The library supports extremely fast and memory efficient GRPO training with full model / LoRA and Zero3. The training logs are saved to wandb. This framework is Huggingface friendly.
 
 ## Installation
 
@@ -183,43 +20,60 @@ pip install -r requirements.txt
 pip install flash-attn
 ```
 
-### quick start
-
-for test environment:
+Make sure to create a directory for output logs and model checkpoints:
 
 ```bash
 mkdir output
 ```
 
-\[option\]: single GPU with LoRA:
+## Get Started
 
-```shell
-ACCELERATE_LOG_LEVEL=info \
-accelerate launch \
---config_file recipes/zero1.yaml \
---num_processes=1 \
-src/x_r1/grpo.py \
---config recipes/X_R1_zero_0dot5B_peft_config.yaml \
-> ./output/x_r1_test_sampling.log 2>&1
+To quickly start GRPOtraining for sanity check, you can use the following steps:
+
+1. Preprocess the dataset. We provide a script for gsm8k dataset. In this step, we convert the dataset by adding a column for `prompt` to store the generation prompt strings after applying the chat template from tokenizer. One can also write the prompt template by themselves. The `prompt` column is necessary for all datasets.
+
+```bash
+python preprocess/gsm8k.py
 ```
 
-\[option\]Multi-GPU:
+2. Write the training recipe. We provide a recipe for gsm8k dataset in `recipes/X_R1_zero_7B_config_a100.yaml`. One can also write the recipe by themselves. The recipe is a yaml file that specifies the model, dataset, training parameters, etc. Note that one should also specify the `wandb_project`, `run_name`, and `output_dir` in the recipe for each new experiment. Make the `run_name` unique for each experiment with major experiment settings(e.g, `Qwen2.5-7B-Instruct_lr_3e-6_bs_240_n_15`), so different experiments can be compared in wandb. 
 
-```shell
-ACCELERATE_LOG_LEVEL=info \
-accelerate launch \
---config_file recipes/accelerate_configs/zero3.yaml \
---num_processes=1 \
-src/x_r1/grpo.py \
---config recipes/x_r1_test_sampling.yaml \
-> ./output/test.log 2>&1
+
+3. Run the training script and you will see the reward curve on wandb bump up fast to 95% in a few steps.
+
+```bash
+bash ./scripts/run_sanity_check_a100.sh
 ```
 
-and we check log file: `./output/test.log`
+## How to add new dataset and training your own model
 
-## Q & A
+We follow a 3-step process detailed below:
 
-### How to setting correct batch_Size and num_generations
+1. Preprocess the dataset into train / test parquet files. One should write a `{dataset_name}.py` file in `preprocess` folder. This file should achieve the following functions	:
+
+- Load the dataset from the original format (e.g., json, csv, etc.)
+- Create a new column for `prompt` to store the generation prompt text strings after applying the chat template from tokenizer of a base model. For example, for gsm8k dataset, one prompt item is:
+
+```
+<|im_start|>system\nA conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning process and answer are enclosed within <think> </think>. Output the final answer after "####".<|im_end|>\n<|im_start|>user\nNatalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May?<|im_end|>\n<|im_start|>assistant\n
+```
+- Add a new column `data_source` to store the original data source name. This column is used to choose the reward function for this sample during training and is necessary for all datasets.
+
+- Add a column for calculating the reward score for each sample. The column name is customizable. For example, for gsm8k dataset, one can add a column `ground_truth` to store the ground truth answer for this prompt. For code related dataset, one may add, for example, unit tests to the column. Keep in mind that the created column name will be passed to the reward function automatically. For example, for gsm8k dataset, the reward function is:
+
+```python
+def compute_score(solution_str, ground_truth, method='strict', format_score=0., score=1.):
+	...
+```
+- Save the train / test parquet as separate files to the `data/parquet` folder
+
+Make sure you use the same argument names as the column names in the dataset.
+
+2. Add a reward function for calculating the accuracy score of the generated solution. One should write a `{dataset_name}.py` file in `src/x_r1/reward_score` folder. Then, one should import the reward function in `src/x_r1/reward_manager.py` after the existing reward functions in `elif` statements. One should make the input arguments of the reward function consistent with the provided variables, and the column names in the dataset.
+
+3. Add a training recipe in `recipes` folder. Make sure the number of processes is set correctly (it should be the number of GPUs - 1). Follow the following rules for setting `per_device_train_batch_size` and `num_generations`:
+
+**How to setting correct batch_Size and num_generations**
 
 we have 4gpu(1 vLLM + 3 training), setting config is:
 
@@ -263,19 +117,12 @@ num_generations: 14
 # 4 * 7 % 14 = 0
 ```
 
+4. Create a new training script for your dataset and model, and add it to the `scripts` folder. Do not overwrite the existing scripts.
 
-## Todo
-
-- support QLoRA GRPO Trainning
-- Release 7B config/result
-- add more rule reward
-- support more base model
-- add benchmark evaluation reuslt
-
-## About
-
-If you have any suggestions, please contact: dhcode95@gmail.com
+```bash
+bash ./scripts/{your_script_name}.sh
+```
 
 ## Acknowledge
 
-[Open-R1](https://github.com/huggingface/open-r1), [TRL](https://github.com/huggingface/trl)
+[X-R1](https://github.com/dhcode-cpp/X-R1/tree/main/src/x_r1), [Open-R1](https://github.com/huggingface/open-r1), [TRL](https://github.com/huggingface/trl), [vLLM](https://github.com/vllm-project/vllm)
