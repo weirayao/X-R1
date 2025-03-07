@@ -18,8 +18,8 @@ test_dataset_file: /export/home/data/gsm8k/test_Qwen2.5-7B-Instruct.parquet
 num_processes: 15
 
 # Reward functions
-reward_funcs: ["accuracy", "format"]
-reward_weights: [1.0, 1.0]
+reward_funcs: ["accuracy"]
+# reward_weights: [1.0, 1.0]
 # GRPO trainer config
 use_vllm: true
 output_dir: output/gsm8k
@@ -35,12 +35,12 @@ vllm_max_model_len: 2048
 temperature: 1.0
 do_eval: true
 eval_strategy: "steps" # "no", "steps", "epoch"
-eval_steps: 10
+eval_steps: 50
 
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-learning_rate: 1.0e-06
+learning_rate: 5.0e-06
 log_level: info
 logging_steps: 1
 logging_strategy: steps
@@ -48,8 +48,8 @@ lr_scheduler_type: cosine
 max_steps: -1
 num_train_epochs: 3
 overwrite_output_dir: true
-per_device_eval_batch_size: 128
-per_device_train_batch_size: 2
+per_device_eval_batch_size: 16
+per_device_train_batch_size: 4
 push_to_hub: False
 report_to:
 - wandb

@@ -29,7 +29,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from configs import GRPOConfig
 from reward_manager import accuracy_reward
 from rewards import (
-    # accuracy_reward,
     format_reward,
     get_cosine_scaled_reward,
     get_repetition_penalty_reward,
@@ -120,14 +119,6 @@ class GRPOScriptArguments(ScriptArguments):
         metadata={"help": "Name of the test split"},
     )
 
-SYSTEM_PROMPT = (
-    "A conversation between User and Assistant. The user asks a question, and the Assistant solves it. The assistant "
-    "first thinks about the reasoning process in the mind and then provides the user with the answer. The reasoning "
-    "process and answer are enclosed within <think> </think> and <answer> </answer> tags, respectively, i.e., "
-    "<think> reasoning process here </think><answer> answer here </answer>"
-)
-
-
 def main(script_args, training_args, model_args):
     # Set seed for reproducibility
     set_seed(training_args.seed)
@@ -178,12 +169,12 @@ def main(script_args, training_args, model_args):
             }
         )
 
-    # align the dataset
-    if script_args.dataset_name == "FreedomIntelligence/medical-o1-verifiable-problem":
-        dataset = dataset.rename_columns({
-            "Open-ended Verifiable Question": "problem",
-            "Ground-True Answer": "solution"
-        })
+    # # align the dataset
+    # if script_args.dataset_name == "FreedomIntelligence/medical-o1-verifiable-problem":
+    #     dataset = dataset.rename_columns({
+    #         "Open-ended Verifiable Question": "problem",
+    #         "Ground-True Answer": "solution"
+    #     })
 
     # Get reward functions
     REWARD_FUNCS_REGISTRY = {
