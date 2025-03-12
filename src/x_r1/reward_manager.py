@@ -34,10 +34,13 @@ def accuracy_reward(prompts=None, completions=None, **reward_kwargs):
             reward = compute_score(solution_str=completion, **kwargs)
         elif data_source == "bigcodebench":
             from src.x_r1.reward_score.bigcodebench import compute_score
-            reward = compute_score(solution_str=completion[0]['content'],ground_truth=kwargs["reward_model"]["ground_truth"])
+            reward = compute_score(solution_str=completion[0]['content'], ground_truth=kwargs["reward_model"]["ground_truth"])
         elif data_source == "codeforce":
             from src.x_r1.reward_score.codeforce import compute_score
-            reward = compute_score(solution_str=completion[0]['content'],ground_truth=kwargs["reward_model"]["ground_truth"])
+            reward = compute_score(solution_str=completion[0]['content'], ground_truth=kwargs["reward_model"]["ground_truth"])
+        elif data_source == "coder1":
+            from src.x_r1.reward_score.coder1 import compute_score
+            reward = compute_score(solution_str=completion, ground_truth=kwargs["reward_model"]["ground_truth"], extra_info=kwargs["extra_info"])
         else:
             raise ValueError(f"Data source {data_source} not supported")
         rewards.append(reward)
