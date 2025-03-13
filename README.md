@@ -1,4 +1,4 @@
-# xLR: Distributed Large Reasoning System as a Scalable Path Towards AGI
+# xLR: Large Reasoning System as Distributed Path Towards AGI
 
 We develop our training framework for xLR model series based on a fork from [X-R1](https://github.com/dhcode-cpp/X-R1/tree/main/src/x_r1). The library supports extremely fast and memory efficient GRPO training with full model / LoRA and Zero3. The training logs are saved to wandb. This framework is Huggingface friendly.
 
