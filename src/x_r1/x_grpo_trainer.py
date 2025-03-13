@@ -202,6 +202,8 @@ class XGRPOTrainer(GRPOTrainer):
         self.max_completion_length = args.max_completion_length  # = |o_i| in the GRPO paper
         self.num_generations = args.num_generations  # = G in the GRPO paper
         self.use_vllm = args.use_vllm
+        # Flag to track if we're in evaluation mode
+        self._is_in_eval = False
 
         # Multi-step
         # self.num_iterations = args.num_iterations  # = 𝜇 in the GRPO paper
@@ -314,6 +316,16 @@ class XGRPOTrainer(GRPOTrainer):
                     max_tokens=self.max_completion_length,
                     # n=args.num_generations,
                 )
+                # Use greedy sampling for evaluation
+                self.eval_sampling_params = SamplingParams(
+                    best_of=1,
+                    top_p=1.0,
+                    top_k=-1,
+                    min_p=0.0,
+                    temperature=0,
+                    max_tokens=self.max_completion_length,
+                    n=1
+                )
 
             self._last_loaded_step = 0  # tag to avoid useless loading during grad accumulation
 
@@ -423,7 +435,11 @@ class XGRPOTrainer(GRPOTrainer):
             # Generate completions using vLLM: gather all prompts and use them in a single call in the main process
             all_prompts_text = gather_object(prompts_text)
             if self.accelerator.is_main_process:
-                outputs = self.llm.generate(all_prompts_text, sampling_params=self.sampling_params, use_tqdm=False)
+                if self._is_in_eval:
+                    # Use greedy sampling for evaluation
+                    outputs = self.llm.generate(all_prompts_text, sampling_params=self.eval_sampling_params, use_tqdm=False)
+                else:
+                    outputs = self.llm.generate(all_prompts_text, sampling_params=self.sampling_params, use_tqdm=False)
                 completion_ids = [out.token_ids for completions in outputs for out in completions.outputs]
                 for output in outputs:
                     print('-'*100)
@@ -477,7 +493,10 @@ class XGRPOTrainer(GRPOTrainer):
         # Mask everything after the first EOS token
         is_eos = completion_ids == self.processing_class.eos_token_id
         eos_idx = torch.full((is_eos.size(0),), is_eos.size(1), dtype=torch.long, device=device)
-        eos_idx[is_eos.any(dim=1)] = is_eos.int().argmax(dim=1)[is_eos.any(dim=1)]
+        has_eos = is_eos.any(dim=1)
+        if has_eos.any():
+            eos_idx[has_eos] = is_eos.int().argmax(dim=1)[has_eos]
+
         sequence_indices = torch.arange(is_eos.size(1), device=device).expand(is_eos.size(0), -1)
         completion_mask = (sequence_indices <= eos_idx.unsqueeze(1)).int()
 
@@ -602,8 +621,16 @@ class XGRPOTrainer(GRPOTrainer):
             "ref_per_token_logps": ref_per_token_logps,
             "advantages": advantages,
         }
-
-
+        
+    def evaluate(self, *args, **kwargs):
+        """
+        Override the evaluate method to set the evaluation flag
+        """
+        self._is_in_eval = True
+        result = super().evaluate(*args, **kwargs)
+        self._is_in_eval = False
+        return result
+        
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None):
         if return_outputs:
             raise ValueError("The GRPOTrainer does not support returning outputs")
