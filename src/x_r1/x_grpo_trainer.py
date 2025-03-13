@@ -443,6 +443,14 @@ class XGRPOTrainer(GRPOTrainer):
                 else:
                     outputs = self.llm.generate(all_prompts_text, sampling_params=self.sampling_params, use_tqdm=False)
                 completion_ids = [out.token_ids for completions in outputs for out in completions.outputs]
+                # Add EOS token to completions that don't end with one because of max_model_len threshold
+                for i, ids in enumerate(completion_ids):
+                    if not ids or ids[-1] != self.processing_class.eos_token_id:
+                        print('add eos token to completion', ids)
+                        print(f'Before add eos token: {completion_ids[i]}')
+                        completion_ids[i] = ids + (self.processing_class.eos_token_id,)
+                        print(f'After add eos token: {completion_ids[i]}')
+                
                 for output in outputs:
                     print('-'*100)
                     print('\n\n\n')
