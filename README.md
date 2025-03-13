@@ -6,12 +6,12 @@ We develop our training framework for xLR model series based on a fork from [X-R
 
 | Name         | Preprocess Script            | Reward Function                      | Domain | Link                                                                                                                                           |
 |--------------|------------------------------|--------------------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------|
-| GSM8K        | `preprocess/gsm8k.py`        | `src/x_r1/reward_score/gsm8k.py`     | Math   | [Link](https://huggingface.co/datasets/gsm8k)                                                                                                  |
+| GSM8K        | `preprocess/gsm8k.py`        | `src/x_r1/reward_score/gsm8k`        | Math   | [Link](https://huggingface.co/datasets/gsm8k)                                                                                                  |
 | Code-R1      | `preprocess/code_r1.py`      | `src/x_r1/reward_score/code_r1`      | Code   | [Link](https://github.com/ganler/code-r1)                                                                                                      |
 | Codeforce    | `preprocess/codeforce.py`    | `src/x_r1/reward_score/codeforce`    | Code   | [Link](https://huggingface.co/datasets/evanellis/evanellis_Codeforces-Python-Submissions_correct_with_h_a_k_prob_0.5_with_null_and_rejected_f) |
 | BigCodeBench | `preprocess/bigcodebench.py` | `src/x_r1/reward_score/bigcodebench` | Code   | [Link](https://huggingface.co/datasets/bigcode/bigcode-bench)                                                                                  |
 | X-R1         | `preprocess/x_r1.py`         | `src/x_r1/reward_score/x_r1`         | Math   | [Link](https://github.com/dhcode-cpp/X-R1/tree/main)                                                                                           |
-
+| DeepScaler   | `preprocess/deepscaler.py`   | `src/x_r1/reward_score/deepscaler`   | Math   | [Link](https://huggingface.co/datasets/agentica-org/DeepScaleR-Preview-Dataset)                                                                |
 
 ## Installation
 
