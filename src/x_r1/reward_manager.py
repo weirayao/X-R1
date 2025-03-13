@@ -41,6 +41,9 @@ def accuracy_reward(prompts=None, completions=None, **reward_kwargs):
         elif data_source == "coder1":
             from src.x_r1.reward_score.coder1 import compute_score
             reward = compute_score(solution_str=completion, ground_truth=kwargs["reward_model"]["ground_truth"], extra_info=kwargs["extra_info"])
+        elif data_source == "deepscaler":
+            from src.x_r1.reward_score.deepscaler import deepscaler_reward_fn
+            reward = deepscaler_reward_fn(solution_str=completion, ground_truth=kwargs["reward_model"]["ground_truth"], enable_llm=False)
         else:
             raise ValueError(f"Data source {data_source} not supported")
         rewards.append(reward)
