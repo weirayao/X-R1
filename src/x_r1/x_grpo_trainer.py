@@ -400,6 +400,8 @@ class XGRPOTrainer(GRPOTrainer):
 
     # Get the per-token log probabilities for the completions for the model and the reference model
     def _get_per_token_logps(self, model, input_ids, attention_mask, logits_to_keep):
+        # Ensure input_ids is of type Long (integer)
+        input_ids = input_ids.long()
         # We add 1 to `logits_to_keep` because the last logits of the sequence is later excluded
         logits = model(input_ids=input_ids, attention_mask=attention_mask, logits_to_keep=logits_to_keep + 1).logits
         logits = logits[:, :-1, :]  # (B, L-1, V), exclude the last logit: it corresponds to the next token pred
@@ -463,8 +465,8 @@ class XGRPOTrainer(GRPOTrainer):
             completion_ids = completion_ids[process_slice]
 
             # Pad the completions, and concatenate them with the prompts
-            completion_ids = [torch.tensor(ids, device=device) for ids in completion_ids]
-            completion_ids = pad(completion_ids, padding_value=self.processing_class.pad_token_id)
+            completion_ids = [torch.tensor(ids, dtype=torch.long, device=device) for ids in completion_ids]
+            completion_ids = pad(completion_ids, padding_value=self.processing_class.pad_token_id).long()
             prompt_ids = prompt_ids.to(device)
             prompt_mask = prompt_mask.to(device)
             prompt_completion_ids = torch.cat([prompt_ids, completion_ids], dim=1)
