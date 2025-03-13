@@ -11,9 +11,7 @@ import numpy as np
 from .utils import _ERROR_MSG_PREFIX
 
 _MAX_CHAR_DISPLAY = 2048
-from .firejail_exec import code_exec_firejail
-
-code_exec = code_exec_firejail
+from .exec import code_exec_direct as code_exec
 
 def remote_check_stdio(code, stdin, stdout):
     succ, output = code_exec(code=code, stdin=stdin)

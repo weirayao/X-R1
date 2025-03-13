@@ -2,10 +2,10 @@
 # required >=  16 x 40G GPU
 # running time ~32h
 wandb_project: coder1
-run_name: Qwen2.5-Coder-7B-Instruct_lr_3e-6_bs_240_n_5
+run_name: Qwen/Qwen2.5-7B-Instruct_lr_2.5e-7_bs_120_n_5
 
 # Model arguments
-model_name_or_path: Qwen/Qwen2.5-Coder-7B-Instruct
+model_name_or_path: Qwen/Qwen2.5-7B-Instruct
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
@@ -23,24 +23,25 @@ reward_funcs: ["accuracy"]
 # GRPO trainer config
 use_vllm: true
 output_dir: output/gsm8k
-gradient_accumulation_steps: 16
+gradient_accumulation_steps: 4
 max_prompt_length: 2048
-num_generations: 5
-max_completion_length: 4096
+num_generations: 3
+max_completion_length: 2048
 
 bf16: true
 vllm_device: auto
 vllm_gpu_memory_utilization: 0.4
-vllm_max_model_len: 6144
+vllm_max_model_len: 4096
 temperature: 1.0
 do_eval: true
 eval_strategy: "steps" # "no", "steps", "epoch"
-eval_steps: 10
+eval_steps: 25
 
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-learning_rate: 5.0e-07
+learning_rate: 2.5e-06
+beta: 0.001 # without KL
 log_level: info
 logging_steps: 1
 logging_strategy: steps
@@ -49,7 +50,7 @@ max_steps: -1
 num_train_epochs: 3
 overwrite_output_dir: true
 per_device_eval_batch_size: 16
-per_device_train_batch_size: 2
+per_device_train_batch_size: 1
 push_to_hub: False
 report_to:
 - wandb

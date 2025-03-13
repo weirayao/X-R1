@@ -20,7 +20,7 @@ from src.x_r1.reward_score.coder1 import code_exec, remote_check_stdio, _ERROR_M
 from transformers import AutoTokenizer
 N_TESTSET_PER_DATASET = 512  # per dataset
 
-model_name = "Qwen/Qwen2.5-Coder-7B-Instruct"
+model_name = "Qwen/QwQ-32B"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
 _EMPTY_RETURN_ = {
@@ -470,8 +470,8 @@ if __name__ == "__main__":
     local_dir = os.path.join(root_dir, f"code-r1-{round(len(train_dataset) / 1000)}k-{names}")
     os.makedirs(local_dir, exist_ok=True)
     rich.print(f"[bold green]Saving to {local_dir}...")
-    train_dataset.to_parquet(os.path.join(local_dir, "train.parquet"))
-    test_dataset.to_parquet(os.path.join(local_dir, "test.parquet"))
+    train_dataset.to_parquet(os.path.join(local_dir, f"train_{model_name.split('/')[-1]}.parquet"))
+    test_dataset.to_parquet(os.path.join(local_dir, f"test_{model_name.split('/')[-1]}.parquet"))
 
     if hdfs_dir is not None:
         makedirs(hdfs_dir)
