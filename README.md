@@ -2,6 +2,17 @@
 
 We develop our training framework for xLR model series based on a fork from [X-R1](https://github.com/dhcode-cpp/X-R1/tree/main/src/x_r1). The library supports extremely fast and memory efficient GRPO training with full model / LoRA and Zero3. The training logs are saved to wandb. This framework is Huggingface friendly.
 
+## Datasets (In Progress)
+
+| Name         | Preprocess Script            | Reward Function                      | Domain | Link                                                                                                                                           |
+|--------------|------------------------------|--------------------------------------|--------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| GSM8K        | `preprocess/gsm8k.py`        | `src/x_r1/reward_score/gsm8k.py`     | Math   | [Link](https://huggingface.co/datasets/gsm8k)                                                                                                  |
+| Code-R1      | `preprocess/code_r1.py`      | `src/x_r1/reward_score/code_r1`      | Code   | [Link](https://github.com/ganler/code-r1)                                                                                                      |
+| Codeforce    | `preprocess/codeforce.py`    | `src/x_r1/reward_score/codeforce`    | Code   | [Link](https://huggingface.co/datasets/evanellis/evanellis_Codeforces-Python-Submissions_correct_with_h_a_k_prob_0.5_with_null_and_rejected_f) |
+| BigCodeBench | `preprocess/bigcodebench.py` | `src/x_r1/reward_score/bigcodebench` | Code   | [Link](https://huggingface.co/datasets/bigcode/bigcode-bench)                                                                                  |
+| X-R1         | `preprocess/x_r1.py`         | `src/x_r1/reward_score/x_r1`         | Math   | [Link](https://github.com/dhcode-cpp/X-R1/tree/main)                                                                                           |
+
+
 ## Installation
 
 ### conda & pip
