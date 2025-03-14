@@ -443,13 +443,25 @@ class XGRPOTrainer(GRPOTrainer):
                 else:
                     outputs = self.llm.generate(all_prompts_text, sampling_params=self.sampling_params, use_tqdm=False)
                 completion_ids = [out.token_ids for completions in outputs for out in completions.outputs]
-                # Add EOS token to completions that don't end with one because of max_model_len threshold
+                # Some work to fix the run time error
+                # If the completion is empty because of error, add the EOS token
+                # If the last token is the pad token, replace the pad token with the EOS token
+                # If the last token is not the EOS token due to max_model_len threshold, add the EOS token
                 for i, ids in enumerate(completion_ids):
                     if not ids or ids[-1] != self.processing_class.eos_token_id:
-                        print('add eos token to completion', ids)
-                        print(f'Before add eos token: {completion_ids[i]}')
-                        completion_ids[i] = ids + (self.processing_class.eos_token_id,)
-                        print(f'After add eos token: {completion_ids[i]}')
+                        if not ids:
+                            print('no completion', ids)
+                            completion_ids[i] = ids + (self.processing_class.eos_token_id,)
+                            print(f'add eos token: {completion_ids[i]}')
+                            
+                        elif ids[-1] == self.processing_class.pad_token_id:
+                            print('pad token in end of completion', ids)
+                            completion_ids[i] = ids[:-1] + (self.processing_class.eos_token_id,)
+                            print(f'Remove pad token and add eos token: {completion_ids[i]}')
+                        else:
+                            print('no eos token in end of completion', ids)
+                            completion_ids[i] = ids + (self.processing_class.eos_token_id,)
+                            print(f'add eos token: {completion_ids[i]}')
                 
                 for output in outputs:
                     print('-'*100)
@@ -571,15 +583,27 @@ class XGRPOTrainer(GRPOTrainer):
         # Apply weights to each reward function's output and sum
         rewards = (rewards_per_func * self.reward_weights.to(device).unsqueeze(0)).sum(dim=1)
         # print('x_grpo_rewars output:',rewards)
+        if self.args.adv_estimator == "grpo":
+            # Compute grouped-wise rewards
+            mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
+            std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
 
-        # Compute grouped-wise rewards
-        mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
-        std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
-
-        # Normalize the rewards to compute the advantages
-        mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
-        std_grouped_rewards = std_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
-        advantages = (rewards - mean_grouped_rewards) / (std_grouped_rewards + 1e-4)
+            # Normalize the rewards to compute the advantages
+            mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
+            std_grouped_rewards = std_grouped_rewards.repeat_interleave(self.num_generations, dim=0)
+            advantages = (rewards - mean_grouped_rewards) / (std_grouped_rewards + 1e-4)
+        elif self.args.adv_estimator == "rl++":
+            # Calculate z-score for rewards without group norm
+            # with RL++, the num_generations can be smaller
+            # Reinforce++: https://arxiv.org/html/2501.03262v1
+            # Reference: https://github.com/volcengine/verl/blob/main/verl/trainer/ppo/core_algos.py#L230
+            # Note that the KL divergence is not included in the advantage calculation 
+            # So there is no need to normalize advantages again
+            # This is different from the paper and the implementation
+            # TODO: move this to the compute_loss function so KL divergence can be included inside the advantage calculation
+            advantages = (rewards - rewards.mean()) / (rewards.std() + 1e-4)
+        else:
+            raise ValueError(f"Invalid advantage estimator: {self.args.adv_estimator}")
 
         print('advantage:', advantages)
 

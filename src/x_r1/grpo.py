@@ -118,6 +118,10 @@ class GRPOScriptArguments(ScriptArguments):
         default="test",
         metadata={"help": "Name of the test split"},
     )
+    adv_estimator: str = field(
+        default="grpo",
+        metadata={"help": "Name of the advantage estimator. Possible values: 'grpo', 'rl++'"},
+    )
 
 def main(script_args, training_args, model_args):
     # Set seed for reproducibility

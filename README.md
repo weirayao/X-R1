@@ -82,7 +82,7 @@ Make sure you use the same argument names as the column names in the dataset.
 
 2. Add a reward function for calculating the accuracy score of the generated solution. One should write a `{dataset_name}.py` file in `src/x_r1/reward_score` folder. Then, one should import the reward function in `src/x_r1/reward_manager.py` after the existing reward functions in `elif` statements. One should make the input arguments of the reward function consistent with the provided variables, and the column names in the dataset.
 
-3. Add a training recipe in `recipes` folder. Make sure the number of processes is set correctly (it should be the number of GPUs - 1). Follow the following rules for setting `per_device_train_batch_size` and `num_generations`:
+3. Add a training recipe in `recipes` folder. Make sure the number of processes is set correctly (it should be the number of GPUs - 1). The full hyper-parameters are set in [grpo_config.py](https://github.com/huggingface/trl/blob/main/trl/trainer/grpo_config.py). Additional scriptarguments are set in [grpo.py](src/x_r1/grpo.py). Follow the following rules for setting `per_device_train_batch_size` and `num_generations`:
 
 **How to setting correct batch_Size and num_generations**
 

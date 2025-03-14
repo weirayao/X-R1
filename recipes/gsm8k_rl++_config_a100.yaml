@@ -1,8 +1,8 @@
 # This is X-R1(https://github.com/dhcode-cpp/X-R1) project training config:
 # required >=  16 x 40G GPU
 # running time ~32h
-wandb_project: coder1
-run_name: Qwen/Qwen2.5-7B-Instruct_lr_2.5e-7_bs_120_n_5
+wandb_project: gsm8k
+run_name: Qwen2.5-7B-Instruct_lr_3e-6_bs_240_n_5_rl++
 
 # Model arguments
 model_name_or_path: Qwen/Qwen2.5-7B-Instruct
@@ -12,8 +12,8 @@ attn_implementation: flash_attention_2
 
 # Data training arguments
 dataset_name: dummy/dummy # This is not used; we preprocess the data before training
-train_dataset_file: /export/home/data/coder1/code-r1-12k-leetcode2k-taco/train.parquet
-test_dataset_file: /export/home/data/coder1/code-r1-12k-leetcode2k-taco/test.parquet
+train_dataset_file: /export/home/data/gsm8k/train_Qwen2.5-7B-Instruct.parquet
+test_dataset_file: /export/home/data/gsm8k/test_Qwen2.5-7B-Instruct.parquet
 
 num_processes: 15
 
@@ -21,27 +21,28 @@ num_processes: 15
 reward_funcs: ["accuracy"]
 # reward_weights: [1.0, 1.0]
 # GRPO trainer config
+adv_estimator: rl++
 use_vllm: true
-output_dir: output/coder1
-gradient_accumulation_steps: 4
-max_prompt_length: 2048
+output_dir: output/gsm8k
+gradient_accumulation_steps: 8
+max_prompt_length: 512
 num_generations: 3
-max_completion_length: 2048
+max_completion_length: 1024
 
 bf16: true
 vllm_device: auto
 vllm_gpu_memory_utilization: 0.4
-vllm_max_model_len: 4096
+vllm_max_model_len: 2048
 temperature: 1.0
 do_eval: true
 eval_strategy: "steps" # "no", "steps", "epoch"
-eval_steps: 25
+eval_steps: 10
 
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-learning_rate: 2.5e-06
-beta: 0.001 # without KL
+learning_rate: 1.0e-06
+beta: 0.0001 # without KL
 log_level: info
 logging_steps: 1
 logging_strategy: steps
@@ -50,7 +51,7 @@ max_steps: -1
 num_train_epochs: 3
 overwrite_output_dir: true
 per_device_eval_batch_size: 16
-per_device_train_batch_size: 1
+per_device_train_batch_size: 2
 push_to_hub: False
 report_to:
 - wandb
