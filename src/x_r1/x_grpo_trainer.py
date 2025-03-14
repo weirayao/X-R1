@@ -626,7 +626,10 @@ class XGRPOTrainer(GRPOTrainer):
             self._metrics[f"rewards/{reward_func_name}"].append(reward_per_func[i].item())
 
         self._metrics["reward"].append(rewards.mean().item())
-        self._metrics["reward_std"].append(std_grouped_rewards.mean().item())
+        if self.args.adv_estimator == "grpo":
+            self._metrics["reward_std"].append(std_grouped_rewards.mean().item())
+        else:
+            self._metrics["reward_std"].append(rewards.std().item())
 
         if (
             self.log_completions

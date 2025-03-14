@@ -13,6 +13,13 @@ We develop our training framework for xLR model series based on a fork from [X-R
 | X-R1         | `preprocess/x_r1.py`         | `src/x_r1/reward_score/x_r1`         | Math   | [Link](https://github.com/dhcode-cpp/X-R1/tree/main)                                                                                           |
 | DeepScaler   | `preprocess/deepscaler.py`   | `src/x_r1/reward_score/deepscaler`   | Math   | [Link](https://huggingface.co/datasets/agentica-org/DeepScaleR-Preview-Dataset)                                                                |
 
+## RL Training Infra Features
+
+- GRPO and REINFORCE++ training
+- Full model and LoRA training
+- Zero3 training
+- vLLM for fast rollout
+
 ## Installation
 
 ### conda & pip

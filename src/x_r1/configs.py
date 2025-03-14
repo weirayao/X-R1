@@ -48,6 +48,10 @@ class GRPOConfig(trl.GRPOConfig):
         default=None,
         metadata={"help": ("The project to store runs under.")},
     )
+    adv_estimator: str = field(
+        default="grpo",
+        metadata={"help": "The advantage estimator to use. Possible values: 'grpo', 'rl++'"},
+    )
 
 
 
