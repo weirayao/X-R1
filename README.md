@@ -12,6 +12,7 @@ We develop our training framework for xLR model series based on a fork from [X-R
 | BigCodeBench | `preprocess/bigcodebench.py` | `src/x_r1/reward_score/bigcodebench` | Code   | [Link](https://huggingface.co/datasets/bigcode/bigcode-bench)                                                                                  |
 | X-R1         | `preprocess/x_r1.py`         | `src/x_r1/reward_score/x_r1`         | Math   | [Link](https://github.com/dhcode-cpp/X-R1/tree/main)                                                                                           |
 | DeepScaler   | `preprocess/deepscaler.py`   | `src/x_r1/reward_score/deepscaler`   | Math   | [Link](https://huggingface.co/datasets/agentica-org/DeepScaleR-Preview-Dataset)                                                                |
+| lsat_qa      | `preprocess/lsat_qa.py`      | `src/x_r1/reward_score/lsat_qa`      | logic   | [Link](https://huggingface.co/datasets/lighteval/lsat_qa)                                                                |
 
 ## RL Training Infra Features
 

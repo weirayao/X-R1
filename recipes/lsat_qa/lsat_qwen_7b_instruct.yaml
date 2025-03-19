@@ -25,13 +25,13 @@ use_vllm: true
 output_dir: output/gsm8k
 gradient_accumulation_steps: 8
 max_prompt_length: 550
-num_generations: 5
-max_completion_length: 1024
+num_generations: 32
+max_completion_length: 4096
 
 bf16: true
 vllm_device: auto
 vllm_gpu_memory_utilization: 0.4
-vllm_max_model_len: 2048
+vllm_max_model_len: 4096
 temperature: 1.0
 do_eval: true
 eval_strategy: "steps" # "no", "steps", "epoch"
@@ -47,10 +47,10 @@ logging_steps: 1
 logging_strategy: steps
 lr_scheduler_type: cosine
 max_steps: -1
-num_train_epochs: 3
+num_train_epochs: 20
 overwrite_output_dir: true
 per_device_eval_batch_size: 16
-per_device_train_batch_size: 2
+per_device_train_batch_size: 8
 push_to_hub: False
 report_to:
 - wandb
