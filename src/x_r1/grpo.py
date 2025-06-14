@@ -245,7 +245,7 @@ def main(script_args, training_args, model_args):
         callbacks=get_callbacks(training_args, model_args),
     )
 
-    print(trainer)
+    # print(trainer)
 
     ###############
     # Training loop
@@ -253,6 +253,7 @@ def main(script_args, training_args, model_args):
     logger.info("*** Train ***")
     checkpoint = None
     if training_args.resume_from_checkpoint is not None:
+        print("resuming from checkpoint")
         checkpoint = training_args.resume_from_checkpoint
     elif last_checkpoint is not None:
         checkpoint = last_checkpoint

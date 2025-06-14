@@ -19,7 +19,7 @@ def remote_check_stdio(code, stdin, stdout):
 
 
 def validate_response_structure(processed_str: str) -> bool:
-    pattern = re.compile(r'<think>.*</think>.*<answer>.*</answer>$', re.DOTALL)
+    pattern = re.compile(r'<think>.*</think>.*<answer>.*</answer>', re.DOTALL)
     return bool(pattern.match(processed_str.strip()))
 
 
@@ -34,21 +34,38 @@ def try_extract_solution(solution_str: str) -> Tuple[Optional[str], str]:
 
     return solution_str
 
+def process_model_solution(solution_str):
+    solution_str = solution_str.replace("\t", "    ")
+    code = None
+    # print("SOLUTION STR \n", solution_str)
+    CODE_PATTERN = re.compile(r'```(?:\w+)?\n(.*?)\n```', re.DOTALL)
+    if "```python" in solution_str:
+        code = solution_str.split("```python")[1].split("```")[0] #re.findall(r"```python\n(.*?)\n```", solution_str, re.DOTALL)
+    # elif "```Python" in solution_str:
+    #     code = re.findall(r"```Python\n(.*?)\n```", solution_str, re.DOTALL)
+    # else:
+    #     code = re.findall(r"```(.*?)```", solution_str, re.DOTALL)
+    
+    # print("WHAT THE HELL IS THIS \n", code)
+    if code:
+        return code#'\n'.join(code).strip()
+    return solution_str
 
 CODE_PATTERN = re.compile(r'```(?:\w+)?\n(.*?)\n```', re.DOTALL)
 
 
 def extract_code_from_string(solution_str):
-    solution_str = try_extract_solution(solution_str)
-    code_blocks = CODE_PATTERN.findall(solution_str)
-    return '\n'.join(code_blocks).strip()
+    return process_model_solution(solution_str)
+    # solution_str = try_extract_solution(solution_str)
+    # code_blocks = CODE_PATTERN.findall(solution_str)
+    # return '\n'.join(code_blocks).strip()
 
 
 def _compute_score(solution_str, ground_truth, extra_info, format_reward=0.1, answer_reward=1.):
     reward_log = []
 
     # ground_truth is not code, but tests
-    pass_fmt = validate_response_structure(solution_str)
+    pass_fmt = True #validate_response_structure(solution_str)
     solution_code = extract_code_from_string(solution_str)
 
     if not pass_fmt or len(solution_code) == 0:  # only print full output when there is an error
@@ -83,24 +100,22 @@ def _compute_score(solution_str, ground_truth, extra_info, format_reward=0.1, an
         stdin_list: str = ground_truth["inputs"]
         stdout_list: str = ground_truth["outputs"]
 
-        # Add parallelism
-        with ThreadPoolExecutor(max_workers=min(8, len(stdin_list))) as executor:
-            futures = [
-                executor.submit(remote_check_stdio, solution_code, stdin, stdout)
-                for stdin, stdout in zip(stdin_list, stdout_list)
-            ]
-            for future in as_completed(futures):
-                succ, output, stdin, stdout = future.result()
-                if not succ or output.strip() != stdout.strip():
-                    output = output[:_MAX_CHAR_DISPLAY]  # truncate output to print
-                    reward_log.append("!" * 16 + f"⚠️ Test Execution Failed in {time.time() - t_start:.1f}s" + "!" * 16)
-                    reward_log.append(f"🔎Input: {repr(stdin)}")
-                    reward_log.append(f"✅Expected: {repr(stdout.strip())}")
-                    reward_log.append(
-                        f"❌Actual: {output if output.startswith(_ERROR_MSG_PREFIX) else repr(output.strip())}")
-                    reward_log.append("-" * 16 + "Failed Prompt" + "-" * 16)
-                    reward_log.append(extra_info["prompt"].replace("\n\n", "\n"))
-                    return format_reward, "\n".join(reward_log)
+        #Without parallelism
+        for stdin, stdout in zip(stdin_list, stdout_list):
+            # Call the remote_check_stdio function directly
+            succ, output, stdin, stdout = remote_check_stdio(solution_code, stdin, stdout)
+
+            if not succ or output.strip() != stdout.strip():
+                output = output[:_MAX_CHAR_DISPLAY]  # truncate output to print
+                reward_log.append("!" * 16 + f"⚠️ Test Execution Failed in {time.time() - t_start:.1f}s" + "!" * 16)
+                reward_log.append(f"🔎Input: {repr(stdin)}")
+                reward_log.append(f"✅Expected: {repr(stdout.strip())}")
+                reward_log.append(
+                    f"❌Actual: {output if output.startswith(_ERROR_MSG_PREFIX) else repr(output.strip())}")
+                reward_log.append("-" * 16 + "Failed Prompt" + "-" * 16)
+                reward_log.append(extra_info["prompt"].replace("\n\n", "\n"))
+                return format_reward, "\n".join(reward_log)
+            
     else:
         raise ValueError(
             f"Current supports for ground-truth are ['functional', 'inputs/outputs'] -- No idea what's: {ground_truth = }"

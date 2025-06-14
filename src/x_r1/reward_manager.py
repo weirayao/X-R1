@@ -2,7 +2,17 @@
 # Use data source to determine which accuracy reward function to use
 # Please import the reward function in the reward_score folder
 # and add a new elif statement here
-def accuracy_reward(prompts=None, completions=None, **reward_kwargs):
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
+import torch.nn.functional as F
+import openai
+import os
+
+openai.api_key = os.getenv("OPENAI_API_KEY")
+
+def accuracy_reward(prompts=None, completions=None,model_init_kwargs=None, **reward_kwargs):
     """
     This function is used to manage the accuracy rewards for the model based on the data source.
     
@@ -23,8 +33,52 @@ def accuracy_reward(prompts=None, completions=None, **reward_kwargs):
     
     # Calculate rewards for each completion based on the data source
     # TODO: may parallelize this using multiprocessing for code execution or multithreading for LLM judge
+    # model_init_kwargs = {'revision': 'main', 'trust_remote_code': False, 'torch_dtype': torch.bfloat16, 'use_cache': True}
+    
+    
+    
+    # prompt_to_indices = {}
+    # for idx, prompt in enumerate(prompts):
+    #     prompt_to_indices.setdefault(prompt, []).append(idx)
+
+    # Compute diversity scores for each group of completions with the same prompt
+    diversity_scores = [0.0] * len(completions)
+    # for indices in prompt_to_indices.values():
+    #     group_completions = [completions[i] for i in indices]
+    #     # If completion is a dict/list, extract text
+    #     # def extract_text(c):
+    #     #     if isinstance(c, list) and len(c) > 0 and isinstance(c[0], dict) and 'content' in c[0]:
+    #     #         return c[0]['content']
+    #     #     elif isinstance(c, dict) and 'content' in c:
+    #     #         return c['content']
+    #     #     return tokenizer(c[:250], return_tensors='pt')
+    #     # texts = tokenizer(group_completions, padding=True, truncation=True, return_tensors='pt')
+        
+    #     # print(texts[0])
+    #     # with torch.no_grad():
+    #     #     outputs = model(**texts, output_hidden_states=True)
+    #     #     last_hidden_state = outputs.hidden_states[-1]  # (1, seq_len, hidden_size)
+    #     #     embeddings = last_hidden_state.mean(dim=1)  # average pooling over tokens
+        
+    #     embeddings = []
+    #     for completion in group_completions:
+    #         response = openai.embeddings.create(
+    #             input=completion,
+    #             model="text-embedding-3-small"
+    #         )
+    #         embeddings.append(response.data[0].embedding)
+            
+    #     sim_matrix = cosine_similarity(embeddings)
+    #     # Get upper triangle (excluding diagonal) for pairwise similarities
+    #     n = len(embeddings)
+    #     pairwise_sims = [sim_matrix[i, j] for i in range(n) for j in range(i+1, n)]
+    #     avg_sim = float(np.mean(pairwise_sims))
+    #     for i in indices:
+    #         diversity_scores[i] = avg_sim
+        # print(f"Diversity score for prompt is {avg_sim}")
+
     rewards = []
-    for prompt, completion, data_source, kwargs in zip(prompts, completions, reward_kwargs["data_source"], other_kwargs_list):
+    for idx, (prompt, completion, data_source, kwargs) in enumerate(zip(prompts, completions, reward_kwargs["data_source"], other_kwargs_list)):
         if data_source == "x-r1":
             from src.x_r1.reward_score.xr1 import accuracy_answer_reward
             reward = accuracy_answer_reward(completion=completion, **kwargs)
@@ -44,7 +98,12 @@ def accuracy_reward(prompts=None, completions=None, **reward_kwargs):
         elif data_source == "deepscaler":
             from src.x_r1.reward_score.deepscaler import deepscaler_reward_fn
             reward = deepscaler_reward_fn(solution_str=completion, ground_truth=kwargs["reward_model"]["ground_truth"], enable_llm=False)
+        elif data_source == "deepmath":
+            from src.x_r1.reward_score.deepmath import compute_score
+            reward = compute_score(solution_str=completion, ground_truth=kwargs["reward_model"]["ground_truth"])
         else:
             raise ValueError(f"Data source {data_source} not supported")
+        # Add diversity score
+        reward = 0.75*reward + 0.25*diversity_scores[idx]
         rewards.append(reward)
     return rewards

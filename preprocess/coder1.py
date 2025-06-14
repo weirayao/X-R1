@@ -6,22 +6,31 @@ import os
 import json
 import sys
 import os.path as osp
+import asyncio
 
 # Add the project root directory to the Python path
 sys.path.insert(0, osp.dirname(osp.dirname(osp.abspath(__file__))))
 
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from datasets import load_dataset, concatenate_datasets
+from datasets import load_dataset, concatenate_datasets, Dataset
 from rich.rule import Rule
 import rich
 
+
 from src.x_r1.reward_score.coder1 import code_exec, remote_check_stdio, _ERROR_MSG_PREFIX
 from transformers import AutoTokenizer
+
+from tqdm import tqdm
+import io
+
 N_TESTSET_PER_DATASET = 512  # per dataset
 
-model_name = "Qwen/QwQ-32B"
+model_name = "deepseek-ai/DeepSeek-R1-Distill-Qwen-7B"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
+
+TRAIN_SIZE = 18000
+TEST_SIZE=3000
 
 _EMPTY_RETURN_ = {
     "data_source": None,
@@ -30,6 +39,13 @@ _EMPTY_RETURN_ = {
     "reward_model": None,
     "extra_info": None,
 }
+
+def filter_code(row):
+    
+    # Check for multiple occurrences of "input()" and functions ("def")
+    if len(row['prompt']) < 4096:
+        return True
+    return False
 
 
 def minimize_stdio(inputs, outputs, max_n_tests=8):
@@ -59,10 +75,10 @@ def minimize_stdio(inputs, outputs, max_n_tests=8):
 SYSTEM_PROMPT = """You are a helpful programming assistant. \
 The user will ask you a question and you as the assistant solve it. \
 The assistant first thinks how to solve the task through reasoning and then provides the user with the final answer. \
-The reasoning process and answer are enclosed within <think>...</think> and <answer>...</answer> tags, respectively."""
+The reasoning process and answer are enclosed within <think>...</think> and <answer>...</answer> tags, respectively.
+Please provide the final answer in Python code wrapped in a markdown code block. ```python ```"""
 
 PY_IMPORTS = "import heapq\nfrom math import floor, gcd\nimport random\nimport sys\nfrom typing import *\nfrom functools import *\nimport collections\nfrom collections import *\nfrom itertools import *\nfrom heapq import *\nfrom bisect import *\nfrom string import *\nimport math\nimport datetime\ninf = float('inf')\n"
-
 
 def kodcode():  # Thanks!!! to Zhangchen and Yueqin
     # library requirements?
@@ -83,15 +99,17 @@ def kodcode():  # Thanks!!! to Zhangchen and Yueqin
 
         def process_fn(example, idx):
             reference_solution = example["solution"]
-            test_code = "from solution import *\n" + example["test_code"].strip()
+            test_code = "from solution import *\n" + example["test"].strip()
             # skip it if reference solution requires libs from block_libs
             if any(lib in reference_solution for lib in block_libs):
                 return _EMPTY_RETURN_
             if any(lib in test_code for lib in block_libs):
                 return _EMPTY_RETURN_
             prompt = f"Please solve the programming task below in Python. Code should wrapped in a markdown code block.\n\n{example['question'].strip()}"
-            if example["test_entry_point"] and example["test_entry_point"].strip():
+            if "test_entry_point" in example and example["test_entry_point"].strip():
                 prompt += f"\n\nNote that the output function should be {example['test_entry_point'].strip()}."
+            else:
+                prompt += ""
 
             succ, err = code_exec(code=reference_solution, pytest=test_code)
             if not succ:
@@ -278,6 +296,8 @@ for i, o in zip(_inputs, _outputs):
                     "reference": (example["solutions"][0] if example["solutions"] else ""),
                     "dataset": "likaixin/TACO-verified",
                 },
+                
+                
             }
 
         return process_fn
@@ -286,6 +306,9 @@ for i, o in zip(_inputs, _outputs):
                           with_indices=True,
                           num_proc=64,
                           remove_columns=dataset.column_names).filter(lambda x: x != _EMPTY_RETURN_)
+    print("before prompt filter ", len(dataset))
+    dataset = dataset.filter(filter_code)
+    print("after prompt filter ", len(dataset))
     splits = dataset.train_test_split(test_size=max(1, min(N_TESTSET_PER_DATASET, len(dataset) * 0.1)), seed=666)
     train_dataset = splits["train"]
     test_dataset = splits["test"]
@@ -301,6 +324,7 @@ for i, o in zip(_inputs, _outputs):
 def codecontests():
     rich.print(Rule("Loading deepmind/code_contests..."))
     dataset = load_dataset("deepmind/code_contests")
+    dataset = dataset.filter(filter_code)
     train_dataset = dataset["train"]
     test_dataset = dataset["valid"][:N_TESTSET_PER_DATASET]
 
@@ -367,17 +391,17 @@ def codecontests():
 def leetcode2k():
     rich.print(Rule("Loading LeetCodeDataset..."))
     test_dataset = load_dataset("json",
-                                data_files="/export/home/data/coder1/LeetCodeDataset/data/LeetCodeDataset-v2-test-problems.jsonl")["train"]
+                                data_files="/home/skokane/data/coder1/LeetCodeDataset/data/LeetCodeDataset-v2-test-problems.jsonl")["train"]
     print("Test set:", test_dataset)
 
     train_dataset = concatenate_datasets([
         load_dataset(
             "json",
-            data_files="/export/home/data/coder1/LeetCodeDataset/data/LeetCodeDataset-v2-rl-problems.jsonl",
+            data_files="/home/skokane/data/coder1/LeetCodeDataset/data/LeetCodeDataset-v2-rl-problems.jsonl",
         )["train"],
         load_dataset(
             "json",
-            data_files="/export/home/data/coder1/LeetCodeDataset/data/LeetCodeDataset-v2-sft-problems.jsonl",
+            data_files="/home/skokane/data/coder1/LeetCodeDataset/data/LeetCodeDataset-v2-sft-problems.jsonl",
         )["train"],
     ]).filter(
         lambda example: example["meta"]["question_id"] not in set([d["question_id"] for d in test_dataset["meta"]]))
@@ -425,7 +449,7 @@ def leetcode2k():
                 "extra_info": {
                     "split": split,
                     "index": idx,
-                    "reference": example["completion"],  # C++?
+                    "reference": example["completion"],  # Python?
                     "prompt": prompt,
                     "dataset": "LeetCodeDataset",
                 },
@@ -434,7 +458,155 @@ def leetcode2k():
         return process_fn
 
     train_dataset = train_dataset.map(function=make_map_fn("train"), with_indices=True)
+    train_dataset = train_dataset.filter(filter_code)
     test_dataset = test_dataset.map(function=make_map_fn("test"), with_indices=True)
+    test_dataset = test_dataset.filter(filter_code)
+    return train_dataset, test_dataset
+
+import pickle
+import zlib
+import base64
+
+def decode_test_cases(test_cases):
+    if not test_cases:
+        return None
+    
+    return json.loads(pickle.loads(
+        zlib.decompress(
+            base64.b64decode(test_cases.encode("utf-8"))  # type: ignore
+        )
+    ))
+    
+
+def livecodebench():
+    rich.print(Rule("Loading LiveCodeBench..."))
+    lcb_dataset = load_dataset("livecodebench/code_generation_lite", version_tag="v4_v5", trust_remote_code=True)['test']
+    lcb_dataset = lcb_dataset.filter(lambda x: x["platform"] == "atcoder")
+    
+    def process_fn(example, idx):
+        prompt = ("Solve the programming task below in a Python markdown code block. "
+            "Each time, given inputs through STDIN (like those in the 'Input' section), the program "
+            "produces outputs through STDOUT (like those in the 'Output' section)."
+        ) + (f"\n\n{example['question_title'].strip()}\n\n" if example['question_title'] else "") \
+            + (f"{example['question_content'].strip()}")
+            
+        public_test_cases = json.loads(example["public_test_cases"])
+        private_test_cases = decode_test_cases(example["private_test_cases"])
+            
+        return {
+            "data_source": "coder1",
+            "prompt": [
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            "ability": "coding",
+            "reward_model": {
+                "style": "rule",
+                "ground_truth": json.dumps({
+                    "inputs": [case["input"] for case in public_test_cases + private_test_cases],
+                    "outputs": [case["output"] for case in public_test_cases + private_test_cases],
+                }),
+            },
+            "extra_info": {
+                "split": "test",
+                "index": idx,
+                "prompt": prompt,
+                "dataset": "livecodebench",
+            },
+        }
+    test_dataset = lcb_dataset.map(function=process_fn, with_indices=True, num_proc=64)
+    test_dataset = test_dataset.remove_columns(lcb_dataset.column_names).filter(lambda x: x['prompt'] != None)
+    return test_dataset
+
+def process_test_case(data):
+    return data["pid"], decode_test_cases(data["test_cases"])
+
+def codecontests_plus():
+    test_dataset = livecodebench()
+    
+    rich.print(Rule("Loading codecontests_plus..."))
+    
+    with open("./selected_5k_pids_for_rl.json", "r") as f:
+        selected_pids = set(json.load(f))
+    test_cases = load_dataset("akioi/ccp_test_cases_5k")["train"]
+    problems = load_dataset("akioi/code_contests_plus")["train"]
+    selected_dataset = problems.filter(lambda x: x["pid"] in selected_pids)
+    
+    assert len(selected_dataset) == len(selected_pids), f"Len of selected dataset {len(selected_dataset)} != len of selected pids {len(selected_pids)}"
+    assert len(selected_dataset) == len(test_cases), f"Len of selected dataset {len(selected_dataset)} != len of test cases {len(test_cases)}"
+    
+    # Parallelize test_data dictionary generation
+    from multiprocessing import Pool
+    
+    test_data = {}
+    with Pool(processes=64) as pool:
+        for pid, decoded in tqdm(pool.imap_unordered(process_test_case, test_cases), 
+                               total=len(test_cases)):
+            test_data[pid] = decoded
+    
+    def process_fn(example, idx):
+        if example["pid"] not in test_data or test_data[example["pid"]] is None:
+            return _EMPTY_RETURN_
+        if example['question_content'] is None:
+            return _EMPTY_RETURN_
+        
+        prompt = ("Solve the programming task below in a Python markdown code block. "
+            "Each time, given inputs through STDIN (like those in the 'Input' section), the program "
+            "produces outputs through STDOUT (like those in the 'Output' section)."
+        ) + (f"\n\n{example['question_title'].strip()}\n\n" if example['question_title'] else "") \
+            + (f"{example['question_content'].strip()}")
+        
+        ground_truth = json.dumps({
+            "inputs": [case["input"] for case in test_data[example["pid"]]],
+            "outputs": [case["output"] for case in test_data[example["pid"]]],
+        })
+        
+        if len(ground_truth) > 2 * 1024 * 1024 * 1024: # too big, sample 50% of the cases by skipping once for each case
+            ground_truth = json.dumps({
+                "inputs": [case["input"] for case in test_data[example["pid"]][::2]],
+                "outputs": [case["output"] for case in test_data[example["pid"]][::2]],
+            })
+            print(f"Warning: Large ground truth {example['pid']} with size {len(ground_truth)/1024/1024:.2f}MB")
+        
+        return {
+            "data_source": "coder1",
+            "prompt": [
+                {
+                    "role": "system",
+                    "content": SYSTEM_PROMPT
+                },
+                {
+                    "role": "user",
+                    "content": prompt,
+                },
+            ],
+            "ability": "coding",
+            "reward_model": {
+                "style": "rule",
+                "ground_truth": ground_truth,
+            },
+            "extra_info": {
+                "split": "train",
+                "index": idx,
+                "prompt": prompt,
+                "dataset": "codecontests_plus",
+            },
+        }
+        
+    train_dataset = []
+    for idx, example in tqdm(enumerate(selected_dataset), total=len(selected_dataset)):
+        processed = process_fn(example, idx)
+        # Check byte size of processed example if saved as parquet
+        if processed is not None and processed['prompt'] is not None:
+            train_dataset.append(processed)
+    train_dataset = Dataset.from_list(train_dataset)
+    
     return train_dataset, test_dataset
 
 
@@ -442,7 +614,7 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--root_dir", default="/export/home/data/coder1")
+    parser.add_argument("--root_dir", default="/home/skokane/data/together_livecode/")
     parser.add_argument("--hdfs_dir", default=None)
 
     args = parser.parse_args()
@@ -453,7 +625,7 @@ if __name__ == "__main__":
     train_datasets = []
     test_datasets = []
 
-    dataset_makes = [leetcode2k, taco]
+    dataset_makes = [livecodebench] #codecontests_plus #[ leetcode2k, taco]
     names = "-".join([make.__name__ for make in dataset_makes])
 
     for train, test in [make() for make in dataset_makes]:
@@ -462,18 +634,38 @@ if __name__ == "__main__":
 
     train_dataset = concatenate_datasets(train_datasets).shuffle(seed=666)
     test_dataset = concatenate_datasets(test_datasets)
+    print("Train set:", len(train_dataset))
+    print("Test set:", len(test_dataset))
+    
+    train_dataset = train_dataset.select(range(TRAIN_SIZE))
+    test_dataset = test_dataset.select(range(TEST_SIZE))
+    
+    # Save train dataset in shards
+    num_training_shards = 200
+    num_test_shards = 10
+    for i in tqdm(range(num_training_shards), desc="Saving training shards"):
+        train_dataset.shard(num_shards=num_training_shards, index=i).to_parquet(
+            os.path.join(root_dir, f"train_shard{i}.parquet")
+        )
+    for i in tqdm(range(num_test_shards), desc="Saving test shards"):
+        test_dataset.shard(num_shards=num_test_shards, index=i).to_parquet(
+            os.path.join(root_dir, f"test_shard{i}.parquet")
+        )
 
-    rich.print(Rule("Saving the final dataset"))
-    print("Train set:", train_dataset)
-    print("Test set:", test_dataset)
+    # if hdfs_dir is not None:
+    #     makedirs(hdfs_dir)
 
-    local_dir = os.path.join(root_dir, f"code-r1-{round(len(train_dataset) / 1000)}k-{names}")
-    os.makedirs(local_dir, exist_ok=True)
-    rich.print(f"[bold green]Saving to {local_dir}...")
-    train_dataset.to_parquet(os.path.join(local_dir, f"train_{model_name.split('/')[-1]}.parquet"))
-    test_dataset.to_parquet(os.path.join(local_dir, f"test_{model_name.split('/')[-1]}.parquet"))
+    # rich.print(Rule("Saving the final dataset"))
+    # print("Train set:", len(train_dataset))
+    # print("Test set:", len(test_dataset))
 
-    if hdfs_dir is not None:
-        makedirs(hdfs_dir)
+    # local_dir = os.path.join(root_dir, f"code-r1-{round(len(train_dataset) / 1000)}k-{names}")
+    # os.makedirs(local_dir, exist_ok=True)
+    # rich.print(f"[bold green]Saving to {local_dir}...")
+    # train_dataset.to_parquet(os.path.join(local_dir, f"train_{model_name.split('/')[-1]}.parquet"))
+    # test_dataset.to_parquet(os.path.join(local_dir, f"test_{model_name.split('/')[-1]}.parquet"))
 
-        copy(src=root_dir, dst=hdfs_dir)
+    # if hdfs_dir is not None:
+    #     makedirs(hdfs_dir)
+
+    #     copy(src=root_dir, dst=hdfs_dir)

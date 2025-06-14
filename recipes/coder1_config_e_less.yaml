@@ -2,18 +2,18 @@
 # required >=  16 x 40G GPU
 # running time ~32h
 wandb_project: coder1-qwen-7b-instruct
-run_name: Qwen2.5-7B-Instruct_lr_2.5e-7_bs_120_n_5
+run_name: Distill-Qwen-7b-original
 
 # Model arguments
-model_name_or_path: Qwen/Qwen2.5-7B-Instruct
+model_name_or_path: /home/skokane/models/models--deepseek-ai--DeepSeek-R1-Distill-Qwen-7B/snapshots/14dd1130311655b43c3ce41dd505f70f6ca89845/
 model_revision: main
 torch_dtype: bfloat16
 attn_implementation: flash_attention_2
 
 # Data training arguments
 dataset_name: dummy/dummy # This is not used; we preprocess the data before training
-train_dataset_file: /home/skokane/data/code-r1-12k-leetcode2k-taco/train_Qwen2.5-7B-Instruct.parquet
-test_dataset_file: /home/skokane/data/code-r1-12k-leetcode2k-taco/test_Qwen2.5-7B-Instruct.parquet
+train_dataset_file: /home/skokane/data/code-r1-12k-leetcode2k-taco/code-r1-12k-leetcode2k-taco/train_DeepSeek-R1-Distill-Qwen-7B.parquet
+test_dataset_file: /home/skokane/data/code-r1-12k-leetcode2k-taco/code-r1-12k-leetcode2k-taco/test_DeepSeek-R1-Distill-Qwen-7B.parquet
 
 num_processes: 8
 
@@ -22,17 +22,17 @@ reward_funcs: ["accuracy"]
 # reward_weights: [1.0, 1.0]
 # GRPO trainer config
 use_vllm: true
-output_dir: output/qwen_7b/e1/
+output_dir: output/qwen_distill_7b_ccplus_t06/e_1/
 gradient_accumulation_steps: 4
 max_prompt_length: 4096
-num_generations: 3
+num_generations: 4
 max_completion_length: 4096
 
 bf16: true
 vllm_device: auto
-vllm_gpu_memory_utilization: 0.5
+vllm_gpu_memory_utilization: 0.6
 vllm_max_model_len: 4096
-temperature: 0.7
+temperature: 0.6
 do_eval: true
 eval_strategy: "steps" # "no", "steps", "epoch"
 eval_steps: 25
@@ -40,22 +40,22 @@ eval_steps: 25
 gradient_checkpointing: true
 gradient_checkpointing_kwargs:
   use_reentrant: false
-learning_rate: 2.5e-06
+learning_rate: 2.5e-07
 beta: 0.001 # without KL
 log_level: info
 logging_steps: 1
 logging_strategy: steps
 lr_scheduler_type: cosine
 max_steps: -1
-num_train_epochs: 1
+num_train_epochs: 0.5
 overwrite_output_dir: true
-per_device_eval_batch_size: 16
-per_device_train_batch_size: 1
+per_device_eval_batch_size: 8
+per_device_train_batch_size: 4
 push_to_hub: False
 report_to:
 - wandb
 
 save_strategy: "epoch"
-resume_from_checkpoint: False
+resume_from_checkpoint: False #/home/skokane/rl/X-R1/output/coder1/e_less_1/checkpoint-110/
 seed: 42
 warmup_ratio: 0.1

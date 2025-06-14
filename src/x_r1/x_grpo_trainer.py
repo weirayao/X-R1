@@ -31,6 +31,7 @@ from datasets import Dataset, IterableDataset
 from packaging import version
 from torch import nn
 from torch.utils.data import Sampler
+import torch.nn.functional as F
 from transformers import (
     AutoModelForCausalLM,
     AutoModelForSequenceClassification,
@@ -51,7 +52,7 @@ from trl.import_utils import is_vllm_available
 from trl.trainer.callbacks import SyncRefModelCallback
 from trl.trainer.grpo_config import GRPOConfig
 from trl.trainer.utils import  pad, selective_log_softmax
-
+from sentence_transformers import SentenceTransformer
 if is_peft_available():
     from peft import PeftConfig, get_peft_model
 
@@ -96,6 +97,10 @@ class XGRPOTrainer(GRPOTrainer):
 
         # Models
         # Trained model
+        
+        #self.diversity_model = SentenceTransformer(model, device="cuda")
+        self.model_init_kwargs = args.model_init_kwargs
+        
         model_init_kwargs = args.model_init_kwargs or {}
         if isinstance(model, str):
             model_id = model
@@ -299,10 +304,11 @@ class XGRPOTrainer(GRPOTrainer):
                 profiling_patch = patch(
                     "vllm.worker.worker.Worker._assert_memory_footprint_increased_during_profiling", return_value=None
                 )
+                print(f'vllm_device: {vllm_device}')
                 with world_size_patch, profiling_patch:
                     self.llm = LLM(
                         model=model.name_or_path,
-                        device=vllm_device,
+                        device= vllm_device,
                         gpu_memory_utilization=self.args.vllm_gpu_memory_utilization,
                         dtype=self.args.vllm_dtype,
                         # Automatic Prefix Caching caches the KV cache of existing queries, so that a new query can
@@ -450,29 +456,29 @@ class XGRPOTrainer(GRPOTrainer):
                 for i, ids in enumerate(completion_ids):
                     if not ids or ids[-1] != self.processing_class.eos_token_id:
                         if not ids:
-                            print('no completion', ids)
+                            #print('no completion', ids)
                             completion_ids[i] = ids + (self.processing_class.eos_token_id,)
-                            print(f'add eos token: {completion_ids[i]}')
+                            #print(f'add eos token: {completion_ids[i]}')
                             
                         elif ids[-1] == self.processing_class.pad_token_id:
-                            print('pad token in end of completion', ids)
+                            #print('pad token in end of completion', ids)
                             completion_ids[i] = ids[:-1] + (self.processing_class.eos_token_id,)
-                            print(f'Remove pad token and add eos token: {completion_ids[i]}')
+                            #print(f'Remove pad token and add eos token: {completion_ids[i]}')
                         else:
-                            print('no eos token in end of completion', ids)
+                            #print('no eos token in end of completion', ids)
                             completion_ids[i] = ids + (self.processing_class.eos_token_id,)
-                            print(f'add eos token: {completion_ids[i]}')
+                            #print(f'add eos token: {completion_ids[i]}')
                 
                 for output in outputs:
-                    print('-'*100)
-                    print('\n\n\n')
+                    #print('-'*100)
+                    #print('\n\n\n')
                     prompt = output.prompt
                     for output_t in  output.outputs:
                         # print(completion_ids)
-                        print('='*100)
+                        #print('='*100)
                         generated_text = output_t.text
-                        print("【USER】: ", prompt )
-                        print("\n【ASSISTANT】:", generated_text)
+                        #print("【USER】: ", prompt )
+                        #print("\n【ASSISTANT】:", generated_text)
             else:
                 completion_ids = [None] * len(all_prompts_text)
             # Broadcast the completions from the main process to all processes, ensuring each process receives its
@@ -573,7 +579,7 @@ class XGRPOTrainer(GRPOTrainer):
                 # Repeat all input columns (but "prompt" and "completion") to match the number of generations
                 keys = [key for key in inputs[0] if key not in ["prompt", "completion"]]
                 reward_kwargs = {key: [example[key] for example in inputs] for key in keys}
-                output_reward_func = reward_func(prompts=prompts, completions=completions, **reward_kwargs)
+                output_reward_func = reward_func(prompts=prompts, completions=completions,model_init_kwargs=self.model_init_kwargs, **reward_kwargs)
                 rewards_per_func[:, i] = torch.tensor(output_reward_func, dtype=torch.float32, device=device)
 
         # Gather the reward per function: this part is crucial, because the rewards are normalized per group and the
@@ -605,7 +611,7 @@ class XGRPOTrainer(GRPOTrainer):
         else:
             raise ValueError(f"Invalid advantage estimator: {self.args.adv_estimator}")
 
-        print('advantage:', advantages)
+        # print('advantage:', advantages)
 
         # Slice to keep only the local part of the data
         process_slice = slice(
@@ -614,7 +620,7 @@ class XGRPOTrainer(GRPOTrainer):
         )
         advantages = advantages[process_slice]
 
-        print('advantage:', advantages)
+        # print('advantage:', advantages)
 
         # Log the metrics
         reward_per_func = rewards_per_func.mean(0)
