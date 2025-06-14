@@ -1,4 +1,4 @@
-#export WANDB_API_KEY=f9b6e9edc8c5538351a133aa20e32cd9e04a547c
+
 
 # ACCELERATE_LOG_LEVEL=info accelerate launch \
 # --config_file recipes/zero3.yaml \
